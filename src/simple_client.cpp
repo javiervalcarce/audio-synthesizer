@@ -19,9 +19,6 @@ jack_port_t *input_port;
 jack_port_t *output_port;
 jack_client_t *client;
 
-
-int n;
-
 /**
  * The process callback for this JACK application is called in a
  * special realtime thread once for each audio cycle.
@@ -33,13 +30,10 @@ int n;
 extern "C" {
 int process (jack_nframes_t nframes, void *arg)
 {
-      
 	jack_default_audio_sample_t *in, *out;
 	
 	in = static_cast<jack_default_audio_sample_t *>(jack_port_get_buffer (input_port, nframes));
 	out = static_cast<jack_default_audio_sample_t *>(jack_port_get_buffer (output_port, nframes));
-
-	
 	memcpy (out, in, sizeof(jack_default_audio_sample_t) * nframes);
 
 	return 0;      
