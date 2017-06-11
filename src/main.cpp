@@ -20,29 +20,36 @@ jack_port_t *output_port;
 jack_client_t *client;
 
 
-int n;
+int n = 0;
+int sample_rate;
 
 /**
  * The process callback for this JACK application is called in a
  * special realtime thread once for each audio cycle.
  *
  * This client does nothing more than copy data from its input
- * port to its output port. It will exit when stopped by 
+ * port to its output port. It will exit when stopped by
  * the user (e.g. using Ctrl-C on a unix-ish operating system)
  */
 extern "C" {
 int process (jack_nframes_t nframes, void *arg)
 {
-      
+
 	jack_default_audio_sample_t *in, *out;
-	
+
 	in = static_cast<jack_default_audio_sample_t *>(jack_port_get_buffer (input_port, nframes));
 	out = static_cast<jack_default_audio_sample_t *>(jack_port_get_buffer (output_port, nframes));
 
-	
-	memcpy (out, in, sizeof(jack_default_audio_sample_t) * nframes);
 
-	return 0;      
+	// 440 Hz Tone
+	for (int i = 0; i < nframes; i++) {
+	      n++;
+	      out[i] = (float) cos(M_PI * 440 / (float) sample_rate * 2.0 * n);
+	}
+
+	//memcpy (out, in, sizeof(jack_default_audio_sample_t) * nframes);
+
+	return 0;
 }
 }
 
@@ -68,7 +75,7 @@ int main (int argc, char *argv[])
 	const char *server_name = NULL;
 	jack_options_t options = JackNullOption;
 	jack_status_t status;
-	
+
 	/* open a client connection to the JACK server */
 
 	client = jack_client_open (client_name, options, &status, server_name);
@@ -101,11 +108,12 @@ int main (int argc, char *argv[])
 
 	jack_on_shutdown (client, jack_shutdown, 0);
 
-	/* display the current sample rate. 
+	/* display the current sample rate.
 	 */
 
-	printf ("engine sample rate: %" PRIu32 "\n",
-		jack_get_sample_rate (client));
+	sample_rate = jack_get_sample_rate(client);
+
+	printf ("engine sample rate: %" PRIu32 "\n", sample_rate);
 
 	/* create two ports */
 
@@ -149,7 +157,7 @@ int main (int argc, char *argv[])
 	}
 
 	free (ports);
-	
+
 	ports = jack_get_ports (client, NULL, NULL,
 				JackPortIsPhysical|JackPortIsInput);
 	if (ports == NULL) {

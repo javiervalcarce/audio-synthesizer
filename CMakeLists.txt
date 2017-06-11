@@ -43,11 +43,9 @@ include_directories (src/include)
 add_definitions ("-Wall -g")
 
 add_executable(audiosynthesizer ${audiosynthesizer_SRCS})
-target_link_libraries(audiosynthesizer ${JACK_LIBRARIES})
-set_target_properties(audiosynthesizer PROPERTIES VERSION ${AUDIOSYNTHESIZER_VERSION_STRING})
+target_link_libraries(audiosynthesizer ${JACK_LIBRARIES} m pthread)
+#set_target_properties(audiosynthesizer PROPERTIES VERSION ${AUDIOSYNTHESIZER_VERSION_STRING})
 
-#target_link_libraries(gstjvg ${GSTREAMER_LIBRARIES})
-#target_link_libraries(gstjvg ${ZLIB_LIBRARIES})
 
 
 
