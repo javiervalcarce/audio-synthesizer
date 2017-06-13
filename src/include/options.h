@@ -15,14 +15,12 @@
  */
 struct Options {
       Options() {
-            help = false;
-            frequency = 440;
-            instrument = 1;
+            frequency = 440.0;  // Hz
+            decay = 1.0;        // coeficient
       }
       
-      bool help;                    // Print version information and exit.
-      int  frequency;
-      int  instrument;  
+      double  frequency;
+      double  decay;  
       
       /**
        * Retrieves application's options from command line.

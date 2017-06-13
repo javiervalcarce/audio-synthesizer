@@ -1,18 +1,27 @@
-/** @file simple_client.c
- *
- * @brief This simple client demonstrates the most basic features of JACK
- * as they would be used by many applications.
- */
+// Hi Emacs, this is -*- mode: c++; tab-width: 6; indent-tabs-mode: nil; c-basic-offset: 6 -*-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Experimental audio synthesizer.
+//
+// Copyright (C) 2017 Javier Valcarce, <javier.valcarce@gmail.com>
+//
+//
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// platform
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <jack/jack.h>
 
+// c++
 #include <cmath>
+
+// app
+#include "options.h"
+#include "version.h"
+
 
 
 jack_port_t *input_port;
@@ -68,11 +77,12 @@ void jack_shutdown (void *arg)
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int main (int argc, char *argv[])
-{
+int main (int argc, char** argv) {
+      
 	const char **ports;
 	const char *client_name = "simple";
 	const char *server_name = NULL;
+
 	jack_options_t options = JackNullOption;
 	jack_status_t status;
 
