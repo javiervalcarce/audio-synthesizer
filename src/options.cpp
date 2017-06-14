@@ -14,12 +14,9 @@ int Options::LoadOptionsFromCommandLine(int argc, char** argv) {
 
       GOptionContext* ctx;
       GError* err = NULL;
-
       gchar* str_host = NULL;
 
-
-      GOptionEntry entries[] = {
-            
+      GOptionEntry entries[] = {           
             //{ "layer0",     0, 0, G_OPTION_ARG_FILENAME, &f0,           "Layer #0 in the composition", "PNG-FILE or :fbdev or :test1" },           
             { "frequency",  0, 0, G_OPTION_ARG_INT, &frequency,   "Frequency (Hz)",     "HZ" },
             { "decay",      0, 0, G_OPTION_ARG_INT, &decay,       "Decay",              "V"  },
