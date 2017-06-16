@@ -38,7 +38,7 @@ set (CMAKE_VERBOSE_MAKEFILE on)
 include_directories (src/include)
 
 # opciones de compilación (CFLAGS)
-add_definitions ("-Wall -g")
+add_definitions ("-Wall -g -std=c++11")
 
 add_executable(audiosynthesizer ${audiosynthesizer_SRCS})
 

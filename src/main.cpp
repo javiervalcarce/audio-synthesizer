@@ -39,6 +39,43 @@ int n = 0;
 int sample_rate;
 
 
+enum class MidiEvent {
+      kNoteOn,
+      kNoteOff,
+      kUnknown
+};
+
+
+
+
+
+jack_default_audio_sample_t ramp=0.0;
+jack_default_audio_sample_t note_on;
+unsigned char note = 0;
+jack_default_audio_sample_t note_frqs[128];
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+MidiEvent ParseEvent(uint8_t first_octet) {
+      if ((first_octet & 0xf0) == 0x90 ) {
+            return MidiEvent::kNoteOn;
+      } else if ((first_octet & 0xf0) == 0x80) {
+            return MidiEvent::kNoteOff;
+      }
+      return MidiEvent::kUnknown;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void calc_note_frqs(jack_default_audio_sample_t srate)
+{
+	int i;
+	for (i=0; i < 128; i++) {
+		note_frqs[i] = (2.0 * 440.0 / 32.0) * pow(2, (((jack_default_audio_sample_t)i - 9.0) / 12.0)) / srate;
+	}
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,7 +89,7 @@ int sample_rate;
  */
 int process (jack_nframes_t nframes, void *arg) {
 
-      printf("process\n");
+      printf("process %d\n", nframes);
       
 	jack_default_audio_sample_t *in, *out;
 
@@ -61,13 +98,9 @@ int process (jack_nframes_t nframes, void *arg) {
 
 
 	// 440 Hz Tone
-	for (int i = 0; i < nframes; i++) {
-	      n++;
-            // Dos tonos.
-	      //out[i] = (float) 1.0 * cos(M_PI * 440 / (float) sample_rate * 2.0 * n) +
-            //      (float) 0.5 * cos(M_PI * 220 / (float) sample_rate * 2.0 * n + M_PI/2);
-            out[i] = 0.0;
-	}
+	//for (int i = 0; i < nframes; i++) {
+	      
+            //}
 
 	//memcpy (out, in, sizeof(jack_default_audio_sample_t) * nframes);
 
@@ -88,10 +121,9 @@ int process (jack_nframes_t nframes, void *arg) {
       // input: get number of events, and process them.
       jack_nframes_t event_count = jack_midi_get_event_count(port_buf);
       if (event_count > 0) {
-            for (int i=0; i<event_count; i++) {
+            for (int i = 0; i < event_count; i++) {
 
                   jack_midi_event_get(&in_event, port_buf, i);
-      
                   // Using "cout" in the JACK process() callback is NOT realtime, this is
                   // used here for simplicity.
                   std::cout << "Frame " << position.frame << "  Event: " << i << " SubFrame#: " << in_event.time << " \tMessage:\t"
@@ -99,17 +131,64 @@ int process (jack_nframes_t nframes, void *arg) {
                             << "\t" << (long)in_event.buffer[2] << std::endl;
             }
       }
+
+      
+      MidiEvent e;
+
+      jack_midi_event_get(&in_event, port_buf, 0);
+
+      static bool enabled = false;
+      float freq;
+      
+	for (int i = 0; i < nframes; i++) {
+            
+		if ((in_event.time == i) && (event_index < event_count)) {
+                  e = ParseEvent(*(in_event.buffer));
+                  
+			switch (e) {
+                  case MidiEvent::kNoteOn:
+				note = *(in_event.buffer + 1);
+                        enabled = true;
+                        break;
+                        
+                  case MidiEvent::kNoteOff:
+				note = *(in_event.buffer + 1);
+                        enabled = false;
+                        break;
+                  case MidiEvent::kUnknown:
+                        break;
+                  }
+                  
+			event_index++;
+			if (event_index < event_count) {
+				jack_midi_event_get(&in_event, port_buf, event_index);
+                  }
+		}
+
+
+            n++;
+            freq = 440.0F;
+            
+            // Dos tonos.
+            if (enabled) {
+                  out[i] = (float) 1.0 * cos(M_PI * freq / (float) sample_rate * 2.0 * n);
+            } else {
+                  out[i] = 0.0;
+            }
+                        
+		//out[i] = note_on*sin(2 * M_PI * ramp);
+	}
       
 	return 0;
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * JACK calls this shutdown_callback if the server ever shuts down or
  * decides to disconnect the client.
  */
-
-void jack_shutdown (void *arg) {
+void jack_shutdown(void *arg) {
 	exit (1);
 }
 
