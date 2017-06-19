@@ -39,14 +39,70 @@ int n = 0;
 int sample_rate;
 
 
-enum class MidiEvent {
+enum class MidiMessageType {
+      kProgramChange,
       kNoteOn,
       kNoteOff,
+      kVolume,
+      kPanoramic,
+      kAllNotesOff,
+      kAllControllersOff,
+      kPitchBend,
+      kMidiReset,
+      // ...
       kUnknown
 };
 
 
+struct MidiMessage {
+      int time;  // Sample index at which event is valid.
+      
+      MidiMessageType type;
+      
+      union {
+            struct {
+                  int channel;
+                  int instrument;
+            } program_change;
 
+            struct {
+                  int channel;
+                  int pitch;
+                  int velocity;  // if 0 => note_off
+            } note_on;
+            
+            struct {
+                  int channel;
+                  int pitch;
+                  int velocity;
+            } note_off;
+            
+            struct {
+                  int channel;
+                  int volume;
+            } volume;
+
+            struct {
+                  int channel;
+                  int pan;
+            } panoramic;
+            
+            struct {
+                  int channel;
+            } all_controllers_off;   // reset values
+            
+            struct {
+                  int channel;
+            } all_notes_off;   // all notes in this channel off
+
+            
+            struct {
+                  int channel;
+                  int bend;
+            } pitch_bend;
+
+      };
+};
 
 
 jack_default_audio_sample_t ramp=0.0;
@@ -58,13 +114,13 @@ jack_default_audio_sample_t note_frqs[128];
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-MidiEvent ParseEvent(uint8_t first_octet) {
+MidiMessageType ParseEvent(uint8_t first_octet) {
       if ((first_octet & 0xf0) == 0x90 ) {
-            return MidiEvent::kNoteOn;
+            return MidiMessageType::kNoteOn;
       } else if ((first_octet & 0xf0) == 0x80) {
-            return MidiEvent::kNoteOff;
+            return MidiMessageType::kNoteOff;
       }
-      return MidiEvent::kUnknown;
+      return MidiMessageType::kUnknown;
 }
 
 
@@ -133,7 +189,8 @@ int process (jack_nframes_t nframes, void *arg) {
       }
 
       
-      MidiEvent e;
+      
+      MidiMessageType e;
 
       jack_midi_event_get(&in_event, port_buf, 0);
 
@@ -146,16 +203,16 @@ int process (jack_nframes_t nframes, void *arg) {
                   e = ParseEvent(*(in_event.buffer));
                   
 			switch (e) {
-                  case MidiEvent::kNoteOn:
+                  case MidiMessageType::kNoteOn:
 				note = *(in_event.buffer + 1);
                         enabled = true;
                         break;
                         
-                  case MidiEvent::kNoteOff:
+                  case MidiMessageType::kNoteOff:
 				note = *(in_event.buffer + 1);
                         enabled = false;
                         break;
-                  case MidiEvent::kUnknown:
+                  case MidiMessageType::kUnknown:
                         break;
                   }
                   

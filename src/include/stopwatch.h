@@ -1,7 +1,6 @@
 // Hi Emacs, this is -*- coding: utf-8; mode: c++; tab-width: 6; indent-tabs-mode: nil; c-basic-offset: 6 -*-
-
-#ifndef GSTMC_STOPWATCH_H_
-#define GSTMC_STOPWATCH_H_
+#ifndef AUDIOSYNTH_STOPWATCH_H_
+#define AUDIOSYNTH_STOPWATCH_H_
 
 #include <time.h>
 #include <stdint.h>
@@ -95,4 +94,4 @@ private:
 };
 
 
-#endif // GSTMC_STOPWATCH_H_
+#endif  // AUDIOSYNTH_STOPWATCH_H_
