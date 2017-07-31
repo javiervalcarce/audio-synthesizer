@@ -227,12 +227,16 @@ int process (jack_nframes_t nframes, void *arg) {
             freq = 440.0F;
             
             // Dos tonos.
+            /*
             if (enabled) {
                   out[i] = (float) 1.0 * cos(M_PI * freq / (float) sample_rate * 2.0 * n);
             } else {
                   out[i] = 0.0;
             }
-                        
+            */
+            
+
+            
 		//out[i] = note_on*sin(2 * M_PI * ramp);
 	}
       

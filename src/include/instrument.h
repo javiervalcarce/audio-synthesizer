@@ -1,6 +1,6 @@
 // Hi Emacs, this is -*- coding: utf-8; mode: c++; tab-width: 6; indent-tabs-mode: nil; c-basic-offset: 6 -*-
-#ifndef AUDIOSYNTH_STOPWATCH_H_
-#define AUDIOSYNTH_STOPWATCH_H_
+#ifndef AUDIOSYNTH_INSTRUMENT_H_
+#define AUDIOSYNTH_INSTRUMENT_H_
 
 #include <ctime>
 #include <cstdint>
@@ -8,35 +8,55 @@
 
 
 /**
- * Stopwatch.
- *
- * This class is a C++ implementation of the Stopwatch class included in the Dart standard library.
- * See https://api.dartlang.org/apidocs/channels/be/dartdoc-viewer/dart:core.Stopwatch
- *
- * Javier Valcarce, <javier.valcarce@sepsa.es>
+ * Monophonic instrument.
+ * 
  */
-class Instrument {
+class MonophonicInstrument {
 public:
       
       /**
        * Creates a Stopwatch in stopped state with a zero elapsed count.
        */
-      Instrument(std::string name);
+      MonophonicInstrument(std::string name, int sample_block_size = 32);
 
-      virtual ~Instrument();
+      virtual ~MonophonicInstrument();
       
-
-      void Compute(double* data, int size);
-
-      void NoteOn(int note, int velocity);
-      void NoteOff(int note, int velocity);
+      virtual int  SampleBlockSize() const =0;
+      virtual int  PlayingNote() const =0;
       
+      virtual void NoteOn(int note, int velocity) =0;
+      virtual void NoteOff(int velocity) = 0;
+      virtual void Reset() =0;    
+      virtual void Compute(double* data, int size) =0;
+
       
 private:
       
       std::string name_;
-            
+      int sample_block_size_;
+      int playing_note_;
+      
 };
 
 
-#endif  // AUDIOSYNTH_STOPWATCH_H_
+class MyInstrument : public MonophonicInstrument {
+public:
+      MyInstrument(std::string name);
+      ~MyInstrument();
+
+      virtual int  SampleBlockSize() const =0;
+      virtual int  PlayingNote() const =0;
+
+      void NoteOn(int note, int velocity) override;
+      void NoteOff(int velocity) override;
+      void Reset() override;    
+      void Compute(double* data, int size) override;
+      
+private:
+      
+      
+};
+
+
+
+#endif  // AUDIOSYNTH_INSTRUMENT_H_
