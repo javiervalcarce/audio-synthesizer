@@ -335,44 +335,4 @@ static GstFlowReturn gst_gz_dec_chain(GstPad* pad, GstObject* parent, GstBuffer*
       return ret; 
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/* entry point to initialize the plug-in
- * initialize the plug-in itself
- * register the element factories and other features
- */
-static gboolean gzdec_init(GstPlugin* gzdec) {
-      /* debug category for fltering log messages
-       *
-       * exchange the string 'Template gzdec' with your description
-       */
-      GST_DEBUG_CATEGORY_INIT (gst_gz_dec_debug, "gzdec", 0, "Template gzdec");
-      return gst_element_register (gzdec, "gzdec", GST_RANK_NONE, GST_TYPE_GZDEC);
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/* PACKAGE: this is usually set by autotools depending on some _INIT macro
- * in configure.ac and then written into and defined in config.h, but we can
- * just set it ourselves here in case someone doesn't use autotools to
- * compile this code. GST_PLUGIN_DEFINE needs PACKAGE to be defined.
- */
-#ifndef PACKAGE
-#define PACKAGE "myfirstgzdec"
-#endif
-
-/* gstreamer looks for this structure to register gzdecs
- *
- * exchange the string 'Template gzdec' with your gzdec description
- */
-GST_PLUGIN_DEFINE (
-                   GST_VERSION_MAJOR,
-                   GST_VERSION_MINOR,
-                   gzdec,
-                   "Inflate plugin",
-                   gzdec_init,
-                   VERSION,
-                   "LGPL",
-                   "GStreamer",
-                   "http://gstreamer.net/"
-                   )

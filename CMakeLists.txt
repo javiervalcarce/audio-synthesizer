@@ -29,23 +29,26 @@ find_package(PkgConfig REQUIRED)
 
 pkg_search_module(JACK REQUIRED jack)
 pkg_search_module(GLIB REQUIRED glib-2.0 gobject-2.0)
-pkg_search_module(CAIRO cairo)
+#pkg_search_module(CAIRO cairo)
 pkg_search_module(GSTREAMER REQUIRED gstreamer-1.0)
-pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-app-1.0)
+#pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-app-1.0)
 pkg_search_module(ZLIB REQUIRED zlib)
 
 include_directories (src/include)
 include_directories (${JACK_INCLUDE_DIRS} ${GLIB_INCLUDE_DIRS} ${GSTREAMER_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS})
-link_directories    (${JACK_LIBRARY_DIRS} ${GLIB_LIBRARY_DIRS} ${GSTREAMER_LIBRARY_DIRS})
+link_directories    (${JACK_LIBRARY_DIRS} ${GLIB_LIBRARY_DIRS} ${GSTREAMER_LIBRARY_DIRS} ${ZLIB_LIBRARY_DIRS})
 
 #add_definitions ("-std=c++11 -Wall -D_FILE_OFFSET_BITS=64")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -D_FILE_OFFSET_BITS=64")
 
 
 # Plug-in GStreamer
-set (libgstjvg_SRCS src/gstgzdec.c)
+set (libgstjvg_SRCS src/plugin.c src/gstgzdec.c src/gstaudiosynth1.c)
+
 # Programa principal
 set (audiosynthesizer_SRCS src/main.cpp src/options.cpp src/version.cpp src/instrument.cpp)
+
+
 
 # Versión de la biblioteca de plugins libgstjvg.so
 set (LIBGSTJVG_VERSION_MAJOR 0)
@@ -54,7 +57,9 @@ set (LIBGSTJVG_VERSION_MICRO 0)
 set (LIBGSTJVG_VERSION_STRING ${LIBGSTJVG_VERSION_MAJOR}.${LIBGSTJVG_VERSION_MINOR}.${LIBGSTJVG_VERSION_MICRO})
 
 
-SET_SOURCE_FILES_PROPERTIES(src/gstgzdec.c PROPERTIES COMPILE_DEFINITIONS VERSION="${LIBGSTJVG_VERSION_STRING}")
+SET_SOURCE_FILES_PROPERTIES(src/plugin.c PROPERTIES COMPILE_DEFINITIONS VERSION="${LIBGSTJVG_VERSION_STRING}")
+#SET_SOURCE_FILES_PROPERTIES(src/gstgzdec.c PROPERTIES COMPILE_DEFINITIONS VERSION="${LIBGSTJVG_VERSION_STRING}")
+#SET_SOURCE_FILES_PROPERTIES(src/gstaudiosynth1.c PROPERTIES COMPILE_DEFINITIONS VERSION="${LIBGSTJVG_VERSION_STRING}")
 
 option (DEBUG        "Build the project using debuging code" ON)
 option (ENABLE_BZIP  "Enable Bzip2 support" OFF)

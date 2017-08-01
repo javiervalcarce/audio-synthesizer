@@ -1,8 +1,11 @@
-
+// Hi Emacs, this is -*- coding: utf-8; mode: c; tab-width: 6; indent-tabs-mode: nil; c-basic-offset: 6 -*-
 #ifndef __GST_GZDEC_H__
 #define __GST_GZDEC_H__
 
 #include <gst/gst.h>
+#include <stdint.h>
+#include <zlib.h>
+
 
 G_BEGIN_DECLS
 
@@ -25,9 +28,10 @@ struct _GstGzDec
 {
   GstElement element;
 
-  GstPad *sinkpad, *srcpad;
-
+  GstPad* sinkpad;
+  GstPad* srcpad;
   gboolean silent;
+  z_stream strm;
 };
 
 struct _GstGzDecClass 
@@ -40,3 +44,5 @@ GType gst_gz_dec_get_type (void);
 G_END_DECLS
 
 #endif /* __GST_GZDEC_H__ */
+
+
