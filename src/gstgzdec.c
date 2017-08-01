@@ -1,18 +1,17 @@
 // Hi Emacs, this is -*- coding: utf-8; mode: c; tab-width: 6; indent-tabs-mode: nil; c-basic-offset: 6 -*-
 //
 // ./autogen.sh
+// make
+// sudo make install
 // export GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0
-// gst-launch-1.0 filesrc location=file.txt.gz ! gzdec ! filesink location="ofile.txt"
+// gst-launch-1.0 filesrc location=file.txt.gz ! gzdec ! filesink location="file.txt"
 //
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
-#include <gst/gst.h>
 #include "gstgzdec.h"
-#include <zlib.h>
-
 
 
 GST_DEBUG_CATEGORY_STATIC (gst_gz_dec_debug);
@@ -56,7 +55,6 @@ static gboolean gst_gz_dec_sink_event (GstPad* pad, GstObject * parent, GstEvent
 static GstFlowReturn gst_gz_dec_chain (GstPad* pad, GstObject * parent, GstBuffer * buf);
 
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Initialize the gzdec's class once. GObject vmethod implementations.
 //
@@ -82,7 +80,7 @@ static void gst_gz_dec_class_init (GstGzDecClass * klass) {
 
       gst_element_class_set_details_simple(gstelement_class,
                                            "GzDec",
-                                           "Inflate an input byte stream",
+                                           "Inflate a deflated input byte stream",
                                            "Basic inflate plugin",
                                            "Javier Valcarce <javier.valcarce@gmail.com>");
 
@@ -114,6 +112,18 @@ static void gst_gz_dec_init(GstGzDec* filter) {
 
       
       filter->silent = FALSE;
+
+      filter->strm.zalloc    = Z_NULL;
+      filter->strm.zfree     = Z_NULL;
+      filter->strm.opaque    = Z_NULL;
+      filter->strm.next_in   = Z_NULL;
+      filter->strm.avail_in  = 0;
+      filter->strm.next_out  = Z_NULL;
+      filter->strm.avail_out = 0;
+
+      //inflateInit(&filter->strm);
+      // gzip deflate format compatibility
+      inflateInit2(&filter->strm, 16 + MAX_WBITS);
 }
 
 
@@ -150,106 +160,179 @@ static void gst_gz_dec_get_property (GObject * object, guint prop_id, GValue * v
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/* GstElement vmethod implementations */
-/* this function handles sink events */
-static gboolean gst_gz_dec_sink_event (GstPad * pad, GstObject * parent, GstEvent * event) {
+// Handles sink events.
+static gboolean gst_gz_dec_sink_event(GstPad* pad, GstObject* parent, GstEvent* event) {
       GstGzDec *filter;
       gboolean ret;
+      GstCaps* caps;
+      
+      filter = GST_GZDEC(parent);
 
-      filter = GST_GZDEC (parent);
+      GST_LOG_OBJECT(filter, "Received %s event: %" GST_PTR_FORMAT, GST_EVENT_TYPE_NAME(event), event);
 
-      GST_LOG_OBJECT (filter, "Received %s event: %" GST_PTR_FORMAT,
-                      GST_EVENT_TYPE_NAME (event), event);
-
-      switch (GST_EVENT_TYPE (event)) {
+      switch (GST_EVENT_TYPE(event)) {
       case GST_EVENT_CAPS:
-            {
-                  GstCaps * caps;
-
-                  gst_event_parse_caps (event, &caps);
-                  /* do something with the caps */
-
-                  /* and forward */
-                  ret = gst_pad_event_default (pad, parent, event);
-                  break;
-            }
+            gst_event_parse_caps(event, &caps);
+            /* do something with the caps */
+            /* and forward */
+            ret = gst_pad_event_default(pad, parent, event);
+            break;
+      case GST_EVENT_EOS:
+            g_print("EOS. Ignore it\n");
+            return TRUE;
+            break;
       default:
-            ret = gst_pad_event_default (pad, parent, event);
+            ret = gst_pad_event_default(pad, parent, event);
             break;
       }
       return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/* chain function
- * this function does the actual processing
- */
-static GstFlowReturn gst_gz_dec_chain(GstPad* pad, GstObject* parent, GstBuffer* buf) {
+// Processing core.
+// GST_PAD_MODE_PUSH scheduling mode
+static GstFlowReturn gst_gz_dec_chain(GstPad* pad, GstObject* parent, GstBuffer* ibuf) {
+
+      const int kOBufSize = 4096;
       GstGzDec *filter;
-
-      filter = GST_GZDEC (parent);
-
-      if (filter->silent == FALSE) {
-            g_print("I'm plugged, therefore I'm in.\n");
-      }
-
-      
-      // MINE...
-      // ---------------------------------------------------------------------------------------------------------------
-      /*
-      z_stream strm;
-      int ret;
+      GstFlowReturn ret;
+      GstBuffer* obuf;
+      GstMapInfo imap;
+      GstMapInfo omap;
+      int r;
       unsigned have;
-
-      strm.zalloc    = Z_NULL;
-      strm.zfree     = Z_NULL;
-      strm.opaque    = Z_NULL;
-      strm.next_in   = Z_NULL;
-      strm.avail_in  = 0;
-
-      ret = inflateInit(&strm);
-
-      strm.next_in   = tmp;
-      strm.avail_in  = header.content_size;
-      strm.next_out  = ozbuf;
-      strm.avail_out = kTestReportMaxSize;
+      gboolean quit;
       
-      ret = inflate(&strm, Z_FINISH);
-      if (ret == Z_STREAM_ERROR) {
-            return kErrorZlib;
-      }
+      filter = GST_GZDEC (parent);
+      obuf = gst_buffer_new_allocate(NULL, kOBufSize, NULL);
       
-      switch (ret) {
-      case Z_NEED_DICT:
-            ret = Z_DATA_ERROR;     // and fall through 
-      case Z_DATA_ERROR:
-      case Z_MEM_ERROR:
-            inflateEnd(&strm);
-            return kErrorZlib;
-      }
+      gst_buffer_map(ibuf, &imap, GST_MAP_READ);
+      gst_buffer_map(obuf, &omap, GST_MAP_WRITE);
+
+      g_print("New input block of %d bytes ----gstreamer %d.%d---------------------------------------------------------------------------------\n", imap.size, GST_VERSION_MAJOR, GST_VERSION_MINOR);
       
-      have = kTestReportMaxSize - strm.avail_out;
+      //for (int i = 0; i < gst_buffer_get_size(ibuf); i++) {
+      //      g_print("%02x ", imap.data[i]);
+      //}
+
+      filter->strm.next_in   = imap.data;
+      filter->strm.avail_in  = imap.size;
+      filter->strm.next_out  = omap.data;
+      filter->strm.avail_out = omap.size;
             
-      if (strm.avail_in != 0) {
-            return kErrorZlib;
+      quit = FALSE;
+      ret = GST_FLOW_OK;
+
+      int count = 0;
+      
+      while (quit == FALSE) {
+
+            count++;
+            
+            if (filter->silent == FALSE) {
+                  g_print("count = %d avail_in  = %d avail_out = %d", count, filter->strm.avail_in, filter->strm.avail_out);
+            }
+
+            r = inflate(&filter->strm, Z_SYNC_FLUSH);
+
+            if (filter->silent == FALSE) {
+                  g_print(" r = %d avail_in  = %d avail_out = %d\n", r, filter->strm.avail_in, filter->strm.avail_out);
+            }
+            
+            switch (r) {
+            case Z_OK:                  // progress could be achieved, continue calling inflate()
+            case Z_BUF_ERROR:           // no progress due to (1) no input data or (2) no space in output buffer
+
+                  if (filter->strm.avail_in == 0) {
+                        // (1) no more input data
+                        have = kOBufSize - filter->strm.avail_out;                  
+                        g_print("NO MORE INPUT DATA\n");
+
+                        gst_buffer_set_size(obuf, have);
+                        gst_buffer_unmap(obuf, &omap);
+                        ret = gst_pad_push(filter->srcpad, obuf);
+                        obuf = NULL; // gst_pad_push() took ownership of buffer
+                        
+                        if (ret != GST_FLOW_OK) {
+                              GST_DEBUG_OBJECT (filter, "pad_push failed: %s", gst_flow_get_name(ret));
+                        }
+
+                        quit = TRUE;
+                        
+                  } else if (filter->strm.avail_out == 0) {
+                        // (2) no more space in output buffer
+                        have = kOBufSize - filter->strm.avail_out;                  
+                        g_print("RUN OUT OF SPACE, Alloc new obuf\n");
+                  
+                        // No space left on output buffer: send buffer
+                        gst_buffer_set_size(obuf, have);
+                        gst_buffer_unmap(obuf, &omap);
+                        ret = gst_pad_push(filter->srcpad, obuf);
+                        obuf = NULL; // gst_pad_push() took ownership of buffer
+                        
+                        if (ret != GST_FLOW_OK) {
+                              GST_DEBUG_OBJECT (filter, "pad_push failed: %s", gst_flow_get_name(ret));
+                        }
+                        
+                        // Alloc new buffer to continue decompressing input data
+                        obuf = gst_buffer_new_allocate(NULL, kOBufSize, NULL);
+                        gst_buffer_map(obuf, &omap, GST_MAP_WRITE);
+
+                        filter->strm.next_out  = omap.data;
+                        filter->strm.avail_out = omap.size;
+                  }
+                  
+                  break;
+                  
+            case Z_STREAM_END:
+
+                  quit = TRUE;
+                  
+                  have = kOBufSize - filter->strm.avail_out;                  
+                  g_print("STREAM_END. OK.\n", have, kOBufSize);
+                  
+                  gst_buffer_set_size(obuf, have);
+
+                  // Send remanent buffer
+                  gst_buffer_unmap(obuf, &omap);
+                  ret = gst_pad_push(filter->srcpad, obuf);
+                  obuf = NULL; // gst_pad_push() took ownership of buffer
+
+                  if (ret != GST_FLOW_OK) {
+                        GST_DEBUG_OBJECT(filter, "pad_push failed: %s", gst_flow_get_name (ret));
+                  }
+                  
+                  GST_DEBUG_OBJECT(filter, "ZLIB STREAM_END. OK. Sending EOS.");
+                  gst_pad_push_event(filter->srcpad, gst_event_new_eos());
+
+                  // Reset zlib internal state to be ready for the next stream / segment.
+                  inflateInit2(&filter->strm, 16 + MAX_WBITS);
+                  count = 0;
+                  
+                  break;
+                  
+            case Z_ERRNO:
+            case Z_STREAM_ERROR:    // zlib internal data structure error
+            case Z_NEED_DICT:       // zlib needs a dictionay at this point
+            case Z_DATA_ERROR:      // zlib data stream error
+            case Z_MEM_ERROR:       // not enought memory
+                  
+                  
+                  quit = TRUE;
+
+                  if (filter->silent == FALSE) {
+                        g_print("Bad input format. Is gziped?\n");
+                  }
+                  
+                  inflateEnd(&filter->strm);
+                  ret = GST_FLOW_ERROR;  
+                                 
+                  break;
+            }
+      
       }
 
-      inflateEnd(&strm);
-
-      if (ret != Z_STREAM_END) {
-            return kErrorZlib;
-      }
-
-      //printf("GetHardwareTestReport: El informe descomprimido pesa %d\n", have);
-      
-      //report->assign((const char*) ozbuf, have);  // ya incluye el '\0' final
-      // ---------------------------------------------------------------------------------------------------------------
-
-*/
-
-      
-      /* just push out the incoming buffer without touching it */
-      return gst_pad_push (filter->srcpad, buf);
+      return ret; 
 }
 
 
