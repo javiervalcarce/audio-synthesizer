@@ -43,12 +43,11 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -D_FILE_OFFSET_BITS=64
 
 
 # Plug-in GStreamer
-set (libgstjvg_SRCS src/plugin.c src/gstgzdec.c src/gstaudiosynth1.c)
+#set (libgstjvg_SRCS src/plugin.c src/gstgzdec.c src/gstaudiosynth1.c)
+set (libgstjvg_SRCS src/plugin.c src/gstgzdec.c src/gstaudiosynth1.c src/main.cpp src/options.cpp src/version.cpp src/instrument.cpp)
 
 # Programa principal
-set (audiosynthesizer_SRCS src/main.cpp src/options.cpp src/version.cpp src/instrument.cpp)
-
-
+#set (audiosynthesizer_SRCS src/main.cpp src/options.cpp src/version.cpp src/instrument.cpp)
 
 # Versión de la biblioteca de plugins libgstjvg.so
 set (LIBGSTJVG_VERSION_MAJOR 0)
@@ -76,10 +75,12 @@ endif()
 add_library(gstjvg SHARED ${libgstjvg_SRCS})
 set_target_properties(gstjvg PROPERTIES VERSION ${LIBGSTJVG_VERSION_STRING})
 target_link_libraries(gstjvg ${GSTREAMER_LIBRARIES})
+target_link_libraries(gstjvg ${JACK_LIBRARIES})
 target_link_libraries(gstjvg ${ZLIB_LIBRARIES})
 
-add_executable(audiosynthesizer ${audiosynthesizer_SRCS})
-target_link_libraries(audiosynthesizer ${JACK_LIBRARIES} ${GLIB_LIBRARIES} ${GSTREAMER_LIBRARIES} m pthread)
+
+#add_executable(audiosynthesizer ${audiosynthesizer_SRCS})
+#target_link_libraries(audiosynthesizer ${JACK_LIBRARIES} ${GLIB_LIBRARIES} ${GSTREAMER_LIBRARIES} m pthread)
 
 # En Ubuntu 16.04 es así:
 #include_directories (/usr/include/gstreamer-1.0)

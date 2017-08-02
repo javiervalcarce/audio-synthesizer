@@ -47,6 +47,9 @@
 #define __GST_AUDIOSYNTH1_H__
 
 #include <gst/gst.h>
+#include <jack/jack.h>
+#include <jack/midiport.h>
+
 
 G_BEGIN_DECLS
 
@@ -67,16 +70,25 @@ typedef struct _GstAudioSynth1Class GstAudioSynth1Class;
 
 struct _GstAudioSynth1
 {
-  GstElement element;
+      GstElement element;
 
-  GstPad *sinkpad, *srcpad;
+      GstPad *sinkpad;
+      GstPad *srcpad;
 
-  gboolean silent;
+      gboolean silent;
+
+      jack_port_t *input_port;
+      jack_port_t *input_midi_port;
+      jack_port_t *output_port;
+      jack_client_t *client;
+      int sample_rate;
 };
+
+
 
 struct _GstAudioSynth1Class 
 {
-  GstElementClass parent_class;
+      GstElementClass parent_class;
 };
 
 GType gst_audio_synth1_get_type (void);
